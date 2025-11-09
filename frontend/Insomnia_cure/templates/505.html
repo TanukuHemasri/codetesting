@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block title %}Internal Server Error{% endblock %} {% block content %}
+500
+Server Error!
+We are sorry, but something went wrong on the server.
+
+{% if error %}
+Error Details: {{ error }}
+
+{% else %}
+Please check your database connection details (host, user, password) and ensure your MySQL server is running.
+
+{% endif %} Try the Tracker Again
+{% endblock %}
