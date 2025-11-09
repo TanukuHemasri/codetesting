@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Relaxation Tools - Insomnia Cure{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>Relaxation Tools</h2>
+        <p class="lead">Use these tools to relax before bedtime and improve your sleep quality.</p>
+        
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-music"></i> Relaxing Sounds</h5>
+            </div>
+            <div class="card-body">
+                <div class="row" id="sounds-container">
+                    <!-- Sounds will be loaded here -->
+                </div>
+                
+                <div class="mt-4">
+                    <h6>Volume Control</h6>
+                    <input type="range" class="form-range" id="volume-control" min="0" max="100" value="50">
+                    <div class="d-flex justify-content-between">
+                        <small>Quiet</small>
+                        <small id="volume-value">50%</small>
+                        <small>Loud</small>
+                    </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button id="play-all" class="btn btn-outline-success me-2">
+                        <i class="fas fa-play"></i> Play All
+                    </button>
+                    <button id="stop-all" class="btn btn-outline-danger">
+                        <i class="fas fa-stop"></i> Stop All
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-spa"></i> Breathing Exercise</h5>
+            </div>
+            <div class="card-body text-center">
+                <p>Follow the animation to practice deep breathing for relaxation.</p>
+                
+                <div class="breathing-circle mx-auto mb-4">
+                    <div class="circle"></div>
+                </div>
+                
+                <div class="breathing-instructions mb-4">
+                    <p id="breath-instruction">Breathe In</p>
+                    <p class="text-muted" id="breath-timer">4 seconds</p>
+                </div>
+                
+                <button id="start-breathing" class="btn btn-primary">
+                    <i class="fas fa-play"></i> Start Breathing Exercise
+                </button>
+                <button id="stop-breathing" class="btn btn-secondary" disabled>
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Sleep Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-clock text-primary"></i> Try to go to bed and wake up at the same time every day
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-bed text-primary"></i> Make your bedroom dark, quiet, and cool
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-book text-primary"></i> Read a book instead of using electronic devices
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-shower text-primary"></i> Take a warm bath 1-2 hours before bedtime
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-utensils text-primary"></i> Avoid heavy meals, caffeine, and alcohol before bed
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">Progressive Muscle Relaxation</h5>
+            </div>
+            <div class="card-body">
+                <p>Tense and relax each muscle group to release physical tension:</p>
+                <ol>
+                    <li>Start with your feet and work upward</li>
+                    <li>Tense each muscle for 5 seconds</li>
+                    <li>Release and relax for 30 seconds</li>
+                    <li>Notice the difference between tension and relaxation</li>
+                </ol>
+                <button class="btn btn-outline-warning w-100" id="start-pmr">
+                    <i class="fas fa-play-circle"></i> Start Guided PMR
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sample relaxation sounds
+    const sounds = [
+        { id: 1, name: 'Ocean Waves', icon: 'fas fa-water', file: 'ocean-waves.mp3', playing: false, audio: null },
+        { id: 2, name: 'Rainfall', icon: 'fas fa-cloud-rain', file: 'rainfall.mp3', playing: false, audio: null },
+        { id: 3, name: 'Forest', icon: 'fas fa-tree', file: 'forest.mp3', playing: false, audio: null },
+        { id: 4, name: 'White Noise', icon: 'fas fa-wind', file: 'white-noise.mp3', playing: false, audio: null },
+        { id: 5, name: 'Piano', icon: 'fas fa-music', file: 'piano.mp3', playing: false, audio: null },
+        { id: 6, name: 'Meditation Bell', icon: 'fas fa-bell', file: 'bell.mp3', playing: false, audio: null }
+    ];
+    
+    const soundsContainer = document.getElementById('sounds-container');
+    
+    // Create sound cards
+    sounds.forEach(sound => {
+        const col = document.createElement('div');
+        col.className = 'col-md-4 mb-3';
+        
+        col.innerHTML = `
+            <div class="card sound-card">
+                <div class="card-body text-center">
+                    <i class="${sound.icon} fa-2x mb-2"></i>
+                    <h6>${sound.name}</h6>
+                    <button class="btn btn-sm btn-outline-primary play-sound" data-sound="${sound.id}">
+                        <i class="fas fa-play"></i> Play
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger stop-sound d-none" data-sound="${sound.id}">
+                        <i class="fas fa-stop"></i> Stop
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        soundsContainer.appendChild(col);
+    });
+    
+    // Volume control
+    const volumeControl = document.getElementById('volume-control');
+    const volumeValue = document.getElementById('volume-value');
+    
+    volumeControl.addEventListener('input', function() {
+        volumeValue.textContent = `${this.value}%`;
+        // Update volume for all playing sounds
+        sounds.forEach(sound => {
+            if (sound.audio) {
+                sound.audio.volume = this.value / 100;
+            }
+        });
+    });
+    
+    // Play/stop individual sounds
+    document.querySelectorAll('.play-sound').forEach(button => {
+        button.addEventListener('click', function() {
+            const soundId = parseInt(this.getAttribute('data-sound'));
+            const sound = sounds.find(s => s.id === soundId);
+            
+            if (!sound.playing) {
+                // Create audio element if it doesn't exist
+                if (!sound.audio) {
+                    sound.audio = new Audio(`/static/audio/relaxation-sounds/${sound.file}`);
+                    sound.audio.loop = true;
+                    sound.audio.volume = volumeControl.value / 100;
+                }
+                
+                sound.audio.play();
+                sound.playing = true;
+                
+                // Update UI
+                this.classList.add('d-none');
+                this.nextElementSibling.classList.remove('d-none');
+                this.closest('.sound-card').classList.add('border-primary');
+            }
+        });
+    });
+    
+    document.querySelectorAll('.stop-sound').forEach(button => {
+        button.addEventListener('click', function() {
+            const soundId = parseInt(this.getAttribute('data-sound'));
+            const sound = sounds.find(s => s.id === soundId);
+            
+            if (sound.playing && sound.audio) {
+                sound.audio.pause();
+                sound.audio.currentTime = 0;
+                sound.playing = false;
+                
+                // Update UI
+                this.classList.add('d-none');
+                this.previousElementSibling.classList.remove('d-none');
+                this.closest('.sound-card').classList.remove('border-primary');
+            }
+        });
+    });
+    
+    // Play all sounds
+    document.getElementById('play-all').addEventListener('click', function() {
+        sounds.forEach(sound => {
+            if (!sound.playing) {
+                const playButton = document.querySelector(`.play-sound[data-sound="${sound.id}"]`);
+                playButton.click();
+            }
+        });
+    });
+    
+    // Stop all sounds
+    document.getElementById('stop-all').addEventListener('click', function() {
+        sounds.forEach(sound => {
+            if (sound.playing) {
+                const stopButton = document.querySelector(`.stop-sound[data-sound="${sound.id}"]`);
+                stopButton.click();
+            }
+        });
+    });
+    
+    // Breathing exercise
+    const circle = document.querySelector('.circle');
+    const instruction = document.getElementById('breath-instruction');
+    const timer = document.getElementById('breath-timer');
+    const startBtn = document.getElementById('start-breathing');
+    const stopBtn = document.getElementById('stop-breathing');
+    
+    let breathingInterval;
+    let isBreathing = false;
+    let breathPhase = 'in'; // 'in', 'hold', 'out'
+    let seconds = 0;
+    const phases = {
+        in: { duration: 4, text: 'Breathe In' },
+        hold: { duration: 7, text: 'Hold' },
+        out: { duration: 8, text: 'Breathe Out' }
+    };
+    
+    startBtn.addEventListener('click', function() {
+        isBreathing = true;
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        breathPhase = 'in';
+        seconds = 0;
+        
+        breathingInterval = setInterval(function() {
+            seconds++;
+            
+            // Update instruction and timer
+            instruction.textContent = phases[breathPhase].text;
+            timer.textContent = `${seconds} seconds`;
+            
+            // Animate circle based on breath phase
+            if (breathPhase === 'in') {
+                const scale = 1 + (seconds / phases.in.duration) * 0.5;
+                circle.style.transform = `scale(${scale})`;
+            } else if (breathPhase === 'out') {
+                const scale = 1.5 - (seconds / phases.out.duration) * 0.5;
+                circle.style.transform = `scale(${scale})`;
+            }
+            
+            // Check if we need to move to next phase
+            if (seconds >= phases[breathPhase].duration) {
+                seconds = 0;
+                
+                if (breathPhase === 'in') {
+                    breathPhase = 'hold';
+                } else if (breathPhase === 'hold') {
+                    breathPhase = 'out';
+                } else {
+                    breathPhase = 'in';
+                }
+            }
+        }, 1000);
+    });
+    
+    stopBtn.addEventListener('click', function() {
+        isBreathing = false;
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        clearInterval(breathingInterval);
+        
+        instruction.textContent = 'Breathe In';
+        timer.textContent = '4 seconds';
+        circle.style.transform = 'scale(1)';
+    });
+    
+    // Progressive Muscle Relaxation
+    document.getElementById('start-pmr').addEventListener('click', function() {
+        alert('Progressive Muscle Relaxation guide would start here. In a full implementation, this would be an audio guide through all muscle groups.');
+    });
+});
+</script>
+{% endblock %}

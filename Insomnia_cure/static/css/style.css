@@ -1,0 +1,206 @@
+:root {
+    --primary-color: #4361ee;
+    --secondary-color: #3f37c9;
+    --success-color: #4cc9f0;
+    --info-color: #4895ef;
+    --warning-color: #f72585;
+    --light-bg: #f8f9fa;
+}
+
+body {
+    background-color: #f5f7fb;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-radius: 10px 10px 0 0 !important;
+    font-weight: 600;
+}
+
+.navbar-brand {
+    font-weight: 700;
+}
+
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* Chat styles */
+.chat-container {
+    height: 400px;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.chat-message {
+    display: flex;
+    margin-bottom: 15px;
+}
+
+.user-message {
+    justify-content: flex-end;
+}
+
+.bot-message {
+    justify-content: flex-start;
+}
+
+.message-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 10px;
+}
+
+.user-message .message-avatar {
+    background-color: var(--primary-color);
+    color: white;
+    order: 2;
+}
+
+.bot-message .message-avatar {
+    background-color: #e9ecef;
+    color: #6c757d;
+    order: 1;
+}
+
+.message-content {
+    max-width: 70%;
+    padding: 12px 15px;
+    border-radius: 18px;
+}
+
+.user-message .message-content {
+    background-color: var(--primary-color);
+    color: white;
+    order: 1;
+}
+
+.bot-message .message-content {
+    background-color: white;
+    color: #333;
+    border: 1px solid #e9ecef;
+    order: 2;
+}
+
+/* Breathing exercise */
+.breathing-circle {
+    width: 200px;
+    height: 200px;
+    position: relative;
+}
+
+.circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--success-color));
+    transition: transform 1s ease-in-out;
+}
+
+.breathing-instructions {
+    font-size: 1.2rem;
+}
+
+#breath-instruction {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+#breath-timer {
+    font-size: 1rem;
+}
+
+/* Sound cards */
+.sound-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.sound-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Sleep quality badges */
+.badge {
+    font-size: 0.8rem;
+}
+
+/* Form styles */
+.form-control, .form-select {
+    border-radius: 6px;
+}
+
+.form-range {
+    height: 1.5rem;
+}
+
+/* Table styles */
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Login/Register tabs */
+.nav-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    background: transparent;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .message-content {
+        max-width: 85%;
+    }
+    
+    .breathing-circle {
+        width: 150px;
+        height: 150px;
+    }
+}

@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Insomnia Cure{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2>Welcome, {{ username }}!</h2>
+        <p class="lead">Your sleep health dashboard</p>
+        
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Average Sleep Duration</h5>
+                        <h2 class="card-text">
+                            {% if averages.avg_duration %}
+                                {{ "%.1f"|format(averages.avg_duration) }} hours
+                            {% else %}
+                                No data
+                            {% endif %}
+                        </h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Average Sleep Quality</h5>
+                        <h2 class="card-text">
+                            {% if averages.avg_quality %}
+                                {{ "%.1f"|format(averages.avg_quality) }}/10
+                            {% else %}
+                                No data
+                            {% endif %}
+                        </h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Sleep Patterns</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="sleepChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('sleep_tracker') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-bed"></i> Log Sleep
+                    </a>
+                    <a href="{{ url_for('relaxation') }}" class="btn btn-outline-success">
+                        <i class="fas fa-spa"></i> Relaxation Tools
+                    </a>
+                    <a href="{{ url_for('chatbot') }}" class="btn btn-outline-info">
+                        <i class="fas fa-robot"></i> Sleep Assistant
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Sleep Tips</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-moon text-primary"></i> Maintain a consistent sleep schedule
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-bed text-primary"></i> Create a relaxing bedtime routine
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-mobile-alt text-primary"></i> Avoid screens 1 hour before bed
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-coffee text-primary"></i> Limit caffeine after 2 PM
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-running text-primary"></i> Exercise regularly but not too close to bedtime
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0">Recent Sleep Logs</h5>
+    </div>
+    <div class="card-body">
+        {% if sleep_logs %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Bedtime</th>
+                        <th>Wakeup</th>
+                        <th>Duration</th>
+                        <th>Quality</th>
+                        <th>Stress</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in sleep_logs %}
+                    <tr>
+                        <td>{{ log.sleep_date }}</td>
+                        <td>{{ log.bedtime }}</td>
+                        <td>{{ log.wakeup_time }}</td>
+                        <td>{{ "%.1f"|format(log.sleep_duration) }} hours</td>
+                        <td>
+                            <span class="badge bg-{% if log.sleep_quality >= 7 %}success{% elif log.sleep_quality >= 5 %}warning{% else %}danger{% endif %}">
+                                {{ log.sleep_quality }}/10
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if log.stress_level <= 3 %}success{% elif log.stress_level <= 6 %}warning{% else %}danger{% endif %}">
+                                {{ log.stress_level }}/10
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-center">No sleep logs yet. <a href="{{ url_for('sleep_tracker') }}">Add your first sleep log</a>.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/sleep-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.dates.length > 0) {
+                const ctx = document.getElementById('sleepChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.dates,
+                        datasets: [
+                            {
+                                label: 'Sleep Duration (hours)',
+                                data: data.durations,
+                                borderColor: 'rgb(75, 192, 192)',
+                                tension: 0.1,
+                                yAxisID: 'y'
+                            },
+                            {
+                                label: 'Sleep Quality (1-10)',
+                                data: data.qualities,
+                                borderColor: 'rgb(255, 99, 132)',
+                                tension: 0.1,
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        interaction: {
+                            mode: 'index',
+                            intersect: false,
+                        },
+                        scales: {
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                title: {
+                                    display: true,
+                                    text: 'Hours'
+                                }
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                title: {
+                                    display: true,
+                                    text: 'Quality Score'
+                                },
+                                min: 1,
+                                max: 10,
+                                grid: {
+                                    drawOnChartArea: false,
+                                },
+                            }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('sleepChart').innerHTML = '<p class="text-center">No sleep data available yet. Start tracking your sleep to see patterns.</p>';
+            }
+        });
+});
+</script>
+{% endblock %}

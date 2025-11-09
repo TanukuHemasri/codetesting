@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Sleep Assistant - Insomnia Cure{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-robot"></i> Sleep Assistant</h5>
+            </div>
+            <div class="card-body">
+                <div id="chat-container" class="chat-container mb-3">
+                    <div class="chat-message bot-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>Hello! I'm your sleep assistant. I can help answer questions about sleep, insomnia, and provide tips for better sleep hygiene. How can I help you today?</p>
+                        </div>
+                    </div>
+                    
+                    {% for chat in chat_history %}
+                    <div class="chat-message user-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>{{ chat.message }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-message bot-message">
+                        <div class="message-avatar">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="message-content">
+                            <p>{{ chat.response }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <form id="chat-form">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="user-input" placeholder="Ask a question about sleep..." autocomplete="off">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i> Send
+                        </button>
+                    </div>
+                </form>
+                
+                <div class="mt-3">
+                    <small class="text-muted">Try asking about: insomnia, sleep quality, stress, dreams, or medications</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Common Questions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-secondary text-start quick-question" data-question="How can I fall asleep faster?">
+                        How can I fall asleep faster?
+                    </button>
+                    <button class="btn btn-outline-secondary text-start quick-question" data-question="What is insomnia?">
+                        What is insomnia?
+                    </button>
+                    <button class="btn btn-outline-secondary text-start quick-question" data-question="How to improve sleep quality?">
+                        How to improve sleep quality?
+                    </button>
+                    <button class="btn btn-outline-secondary text-start quick-question" data-question="What should I do if I wake up in the middle of the night?">
+                        What if I wake up at night?
+                    </button>
+                    <button class="btn btn-outline-secondary text-start quick-question" data-question="Are sleeping pills safe?">
+                        Are sleeping pills safe?
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header bg-warning">
+                <h5 class="mb-0">When to See a Doctor</h5>
+            </div>
+            <div class="card-body">
+                <p>Consult a healthcare provider if you experience:</p>
+                <ul>
+                    <li>Persistent difficulty sleeping for over a month</li>
+                    <li>Daytime fatigue affecting work or driving</li>
+                    <li>Loud snoring with pauses in breathing</li>
+                    <li>Uncomfortable sensations in your legs at night</li>
+                    <li>Sleep problems accompanied by other health issues</li>
+                </ul>
+                <p class="mb-0"><small>This assistant provides general information only, not medical advice.</small></p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const chatContainer = document.getElementById('chat-container');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    
+    // Scroll to bottom of chat
+    function scrollToBottom() {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+    
+    // Add message to chat
+    function addMessage(message, isUser) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+        
+        messageDiv.innerHTML = `
+            <div class="message-avatar">
+                <i class="fas fa-${isUser ? 'user' : 'robot'}"></i>
+            </div>
+            <div class="message-content">
+                <p>${message}</p>
+            </div>
+        `;
+        
+        chatContainer.appendChild(messageDiv);
+        scrollToBottom();
+    }
+    
+    // Handle form submission
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const message = userInput.value.trim();
+        if (!message) return;
+        
+        // Add user message to chat
+        addMessage(message, true);
+        userInput.value = '';
+        
+        // Send to server and get response
+        fetch('/chatbot', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message: message })
+        })
+        .then(response => response.json())
+        .then(data => {
+            // Add bot response to chat
+            addMessage(data.response, false);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            addMessage('Sorry, I encountered an error. Please try again.', false);
+        });
+    });
+    
+    // Quick question buttons
+    document.querySelectorAll('.quick-question').forEach(button => {
+        button.addEventListener('click', function() {
+            const question = this.getAttribute('data-question');
+            userInput.value = question;
+            chatForm.dispatchEvent(new Event('submit'));
+        });
+    });
+    
+    // Focus on input field
+    userInput.focus();
+    
+    // Initial scroll to bottom
+    scrollToBottom();
+});
+</script>
+{% endblock %}

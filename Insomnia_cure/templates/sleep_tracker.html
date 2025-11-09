@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Sleep Tracker - Insomnia Cure{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Log Sleep</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="sleep_date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="sleep_date" name="sleep_date" value="{{ today }}" required>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="bedtime" class="form-label">Bedtime</label>
+                            <input type="time" class="form-control" id="bedtime" name="bedtime" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="wakeup_time" class="form-label">Wake-up Time</label>
+                            <input type="time" class="form-control" id="wakeup_time" name="wakeup_time" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="sleep_quality" class="form-label">Sleep Quality (1-10)</label>
+                        <input type="range" class="form-range" id="sleep_quality" name="sleep_quality" min="1" max="10" value="5">
+                        <div class="d-flex justify-content-between">
+                            <small>Poor</small>
+                            <small id="quality_value">5</small>
+                            <small>Excellent</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="stress_level" class="form-label">Stress Level (1-10)</label>
+                        <input type="range" class="form-range" id="stress_level" name="stress_level" min="1" max="10" value="5">
+                        <div class="d-flex justify-content-between">
+                            <small>Low</small>
+                            <small id="stress_value">5</small>
+                            <small>High</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="caffeine_intake" name="caffeine_intake">
+                            <label class="form-check-label" for="caffeine_intake">
+                                Caffeine after 2 PM
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="exercise" name="exercise">
+                            <label class="form-check-label" for="exercise">
+                                Exercise today
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Any observations about your sleep..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">Save Sleep Log</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Sleep History</h5>
+            </div>
+            <div class="card-body">
+                {% if sleep_logs %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Bedtime</th>
+                                <th>Wakeup</th>
+                                <th>Duration</th>
+                                <th>Quality</th>
+                                <th>Stress</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in sleep_logs %}
+                            <tr>
+                                <td>{{ log.sleep_date }}</td>
+                                <td>{{ log.bedtime }}</td>
+                                <td>{{ log.wakeup_time }}</td>
+                                <td>{{ "%.1f"|format(log.sleep_duration) }} hours</td>
+                                <td>
+                                    <span class="badge bg-{% if log.sleep_quality >= 7 %}success{% elif log.sleep_quality >= 5 %}warning{% else %}danger{% endif %}">
+                                        {{ log.sleep_quality }}/10
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if log.stress_level <= 3 %}success{% elif log.stress_level <= 6 %}warning{% else %}danger{% endif %}">
+                                        {{ log.stress_level }}/10
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-info" data-bs-toggle="tooltip" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center">No sleep logs yet. Start tracking your sleep to see your history here.</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">Sleep Statistics</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="sleepStatsChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('sleep_date').value = today;
+    
+    // Update slider values
+    const qualitySlider = document.getElementById('sleep_quality');
+    const qualityValue = document.getElementById('quality_value');
+    const stressSlider = document.getElementById('stress_level');
+    const stressValue = document.getElementById('stress_value');
+    
+    qualitySlider.addEventListener('input', function() {
+        qualityValue.textContent = this.value;
+    });
+    
+    stressSlider.addEventListener('input', function() {
+        stressValue.textContent = this.value;
+    });
+    
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Sleep statistics chart
+    fetch('/sleep-data')
+        .then(response => response.json())
+        .then(data => {
+            if (data.dates.length > 0) {
+                const ctx = document.getElementById('sleepStatsChart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: data.dates,
+                        datasets: [{
+                            label: 'Sleep Duration (hours)',
+                            data: data.durations,
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Hours'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+});
+</script>
+{% endblock %}

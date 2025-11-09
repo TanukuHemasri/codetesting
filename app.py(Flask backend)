@@ -1,0 +1,345 @@
+from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask_mysqldb import MySQL
+import MySQLdb.cursors
+import re
+import json
+from datetime import datetime, date
+import os
+from werkzeug.security import generate_password_hash, check_password_hash
+
+app = Flask(__name__)
+
+# Security Configuration - Use environment variables in production
+app.secret_key = os.getenv('SECRET_KEY', 'dev_secret_key_change_in_production')
+
+# MySQL Configuration - Use environment variables
+app.config['MYSQL_HOST'] = os.getenv('MYSQL_HOST', 'localhost')
+app.config['MYSQL_USER'] = os.getenv('MYSQL_USER', 'root')
+app.config['MYSQL_PASSWORD'] = os.getenv('MYSQL_PASSWORD', 'your_password_here')
+app.config['MYSQL_DB'] = os.getenv('MYSQL_DB', 'insomnia_cure')
+
+# Optional: MySQL connection settings
+app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
+
+mysql = MySQL(app)
+
+# Simple AI chatbot responses
+def get_chatbot_response(message):
+    """
+    Returns appropriate chatbot responses based on user message
+    """
+    message_lower = message.lower()
+    
+    if any(word in message_lower for word in ['hello', 'hi', 'hey']):
+        return "Hello! I'm your sleep assistant. How can I help you with your sleep concerns today?"
+    
+    elif any(word in message_lower for word in ['insomnia', 'can\'t sleep', 'sleepless', 'cannot sleep']):
+        return "I understand insomnia can be challenging. Try establishing a consistent sleep schedule, avoiding screens before bed, and creating a relaxing bedtime routine. Would you like more specific tips?"
+    
+    elif any(word in message_lower for word in ['sleep quality', 'better sleep', 'improve sleep']):
+        return "To improve sleep quality: maintain a cool, dark bedroom; avoid caffeine after 2 PM; exercise regularly but not too close to bedtime; and try relaxation techniques before sleep."
+    
+    elif any(word in message_lower for word in ['stress', 'anxiety', 'worried', 'anxious']):
+        return "Stress and anxiety can significantly impact sleep. Consider mindfulness meditation, deep breathing exercises, or journaling before bed to calm your mind."
+    
+    elif any(word in message_lower for word in ['wake up', 'early waking', 'waking up']):
+        return "If you're waking up too early, try getting sunlight exposure first thing in the morning, avoid long naps, and ensure your bedroom is completely dark."
+    
+    elif any(word in message_lower for word in ['dream', 'nightmare', 'bad dreams']):
+        return "Vivid dreams or nightmares can disrupt sleep. Try to manage stress during the day and avoid heavy meals or alcohol before bedtime."
+    
+    elif any(word in message_lower for word in ['medication', 'sleeping pills', 'medicine']):
+        return "Sleep medications should only be used under medical supervision. There are many natural approaches we can try first, like improving sleep hygiene and relaxation techniques."
+    
+    elif any(word in message_lower for word in ['caffeine', 'coffee', 'tea']):
+        return "Caffeine can stay in your system for 6-8 hours. Try to avoid caffeinated beverages after 2 PM to ensure it doesn't interfere with your sleep."
+    
+    elif any(word in message_lower for word in ['exercise', 'workout', 'physical activity']):
+        return "Regular exercise can improve sleep quality, but avoid intense workouts within 3 hours of bedtime. Morning or afternoon exercise is ideal for better sleep."
+    
+    elif any(word in message_lower for word in ['nap', 'napping']):
+        return "Short naps (20-30 minutes) before 3 PM can be refreshing. Longer or later naps may interfere with nighttime sleep."
+    
+    elif any(word in message_lower for word in ['thank', 'thanks']):
+        return "You're welcome! I'm here to help you improve your sleep. Feel free to ask any other questions!"
+    
+    else:
+        return "I understand you're concerned about your sleep. For personalized advice, try tracking your sleep patterns in our app and consult with a healthcare provider for persistent issues."
+
+# Routes
+@app.route('/')
+def index():
+    """Homepage - redirects to dashboard if logged in, otherwise to login"""
+    if 'loggedin' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
+@app.route('/login/', methods=['GET', 'POST'])
+def login():
+    """User login route"""
+    message = ''
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form:
+        username = request.form['username']
+        password = request.form['password']
+        
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            user = cursor.fetchone()
+            
+            if user and check_password_hash(user['password'], password):
+                session['loggedin'] = True
+                session['userid'] = user['id']
+                session['username'] = user['username']
+                return redirect(url_for('dashboard'))
+            else:
+                message = 'Incorrect username or password!'
+        except Exception as e:
+            message = f'Database error: {str(e)}'
+    
+    return render_template('login.html', message=message)
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """User registration route"""
+    message = ''
+    if request.method == 'POST' and 'username' in request.form and 'password' in request.form and 'email' in request.form:
+        username = request.form['username']
+        password = request.form['password']
+        email = request.form['email']
+        age = request.form.get('age')
+        gender = request.form.get('gender')
+        
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            account = cursor.fetchone()
+            
+            if account:
+                message = 'Account already exists!'
+            elif not re.match(r'[^@]+@[^@]+\.[^@]+', email):
+                message = 'Invalid email address!'
+            elif not re.match(r'[A-Za-z0-9]+', username):
+                message = 'Username must contain only letters and numbers!'
+            elif not username or not password or not email:
+                message = 'Please fill out the form!'
+            elif len(password) < 6:
+                message = 'Password must be at least 6 characters long!'
+            else:
+                hashed_password = generate_password_hash(password)
+                cursor.execute('INSERT INTO users (username, password, email, age, gender) VALUES (%s, %s, %s, %s, %s)', 
+                              (username, hashed_password, email, age, gender))
+                mysql.connection.commit()
+                message = 'You have successfully registered! Please login.'
+                return redirect(url_for('login'))
+        except Exception as e:
+            message = f'Registration error: {str(e)}'
+    
+    return render_template('login.html', message=message)
+
+@app.route('/dashboard')
+def dashboard():
+    """User dashboard with sleep statistics"""
+    if 'loggedin' in session:
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM sleep_logs WHERE user_id = %s ORDER BY sleep_date DESC LIMIT 7', (session['userid'],))
+            sleep_logs = cursor.fetchall()
+            
+            cursor.execute('SELECT AVG(sleep_duration) as avg_duration, AVG(sleep_quality) as avg_quality FROM sleep_logs WHERE user_id = %s', (session['userid'],))
+            averages = cursor.fetchone()
+            
+            return render_template('dashboard.html', 
+                                 username=session['username'],
+                                 sleep_logs=sleep_logs,
+                                 averages=averages)
+        except Exception as e:
+            return f"Error loading dashboard: {str(e)}"
+    return redirect(url_for('login'))
+
+@app.route('/sleep-tracker', methods=['GET', 'POST'])
+def sleep_tracker():
+    """Sleep tracking form and history"""
+    if 'loggedin' in session:
+        if request.method == 'POST':
+            try:
+                sleep_date = request.form['sleep_date']
+                bedtime = request.form['bedtime']
+                wakeup_time = request.form['wakeup_time']
+                sleep_quality = request.form['sleep_quality']
+                stress_level = request.form['stress_level']
+                caffeine_intake = 1 if 'caffeine_intake' in request.form else 0
+                exercise = 1 if 'exercise' in request.form else 0
+                notes = request.form.get('notes', '')
+                
+                # Calculate sleep duration
+                bedtime_dt = datetime.strptime(bedtime, '%H:%M')
+                wakeup_dt = datetime.strptime(wakeup_time, '%H:%M')
+                
+                # Handle overnight sleep
+                if wakeup_dt < bedtime_dt:
+                    # Sleep spans midnight
+                    duration1 = (datetime.strptime('23:59', '%H:%M') - bedtime_dt).seconds / 3600
+                    duration2 = (wakeup_dt - datetime.strptime('00:00', '%H:%M')).seconds / 3600
+                    sleep_duration = duration1 + duration2 + (1/60)  # Add 1 minute for the midnight transition
+                else:
+                    sleep_duration = (wakeup_dt - bedtime_dt).seconds / 3600
+                
+                cursor = mysql.connection.cursor()
+                cursor.execute('''
+                    INSERT INTO sleep_logs 
+                    (user_id, sleep_date, bedtime, wakeup_time, sleep_duration, sleep_quality, stress_level, caffeine_intake, exercise, notes) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ''', (session['userid'], sleep_date, bedtime, wakeup_time, sleep_duration, sleep_quality, stress_level, caffeine_intake, exercise, notes))
+                mysql.connection.commit()
+                
+                return redirect(url_for('sleep_tracker'))
+            except Exception as e:
+                return f"Error saving sleep log: {str(e)}"
+        
+        # GET request - show form and logs
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM sleep_logs WHERE user_id = %s ORDER BY sleep_date DESC', (session['userid'],))
+            sleep_logs = cursor.fetchall()
+            
+            today = date.today().strftime('%Y-%m-%d')
+            
+            return render_template('sleep-tracker.html', sleep_logs=sleep_logs, today=today)
+        except Exception as e:
+            return f"Error loading sleep tracker: {str(e)}"
+    return redirect(url_for('login'))
+
+@app.route('/relaxation')
+def relaxation():
+    """Relaxation tools page"""
+    if 'loggedin' in session:
+        return render_template('relaxation.html')
+    return redirect(url_for('login'))
+
+@app.route('/chatbot', methods=['GET', 'POST'])
+def chatbot():
+    """AI chatbot for sleep advice"""
+    if 'loggedin' in session:
+        if request.method == 'POST':
+            try:
+                data = request.get_json()
+                user_message = data.get('message', '')
+                
+                # Get AI response
+                ai_response = get_chatbot_response(user_message)
+                
+                # Save to chat history
+                cursor = mysql.connection.cursor()
+                cursor.execute('INSERT INTO chat_history (user_id, message, response) VALUES (%s, %s, %s)', 
+                              (session['userid'], user_message, ai_response))
+                mysql.connection.commit()
+                
+                return jsonify({'response': ai_response})
+            except Exception as e:
+                return jsonify({'response': f'Error: {str(e)}'})
+        
+        # GET request - show chat interface
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM chat_history WHERE user_id = %s ORDER BY timestamp DESC LIMIT 20', (session['userid'],))
+            chat_history = cursor.fetchall()
+            
+            return render_template('chatbot.html', chat_history=reversed(list(chat_history)))
+        except Exception as e:
+            return f"Error loading chatbot: {str(e)}"
+    return redirect(url_for('login'))
+
+@app.route('/profile')
+def profile():
+    """User profile page"""
+    if 'loggedin' in session:
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT * FROM users WHERE id = %s', (session['userid'],))
+            user = cursor.fetchone()
+            
+            # Get sleep statistics
+            cursor.execute('''
+                SELECT COUNT(*) as total_logs, 
+                       AVG(sleep_duration) as avg_duration, 
+                       AVG(sleep_quality) as avg_quality,
+                       MAX(sleep_quality) as best_night
+                FROM sleep_logs WHERE user_id = %s
+            ''', (session['userid'],))
+            sleep_stats = cursor.fetchone()
+            
+            return render_template('profile.html', user=user, sleep_stats=sleep_stats)
+        except Exception as e:
+            return f"Error loading profile: {str(e)}"
+    return redirect(url_for('login'))
+
+@app.route('/export-data')
+def export_data():
+    """Export user sleep data as CSV"""
+    if 'loggedin' in session:
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            
+            # Get sleep data
+            cursor.execute('SELECT * FROM sleep_logs WHERE user_id = %s ORDER BY sleep_date DESC', (session['userid'],))
+            sleep_data = cursor.fetchall()
+            
+            # Convert to CSV format
+            csv_data = "Date,Bedtime,Wakeup Time,Sleep Duration,Sleep Quality,Stress Level,Caffeine,Exercise,Notes\n"
+            for row in sleep_data:
+                csv_data += f"{row['sleep_date']},{row['bedtime']},{row['wakeup_time']},{row['sleep_duration']},{row['sleep_quality']},{row['stress_level']},{'Yes' if row['caffeine_intake'] else 'No'},{'Yes' if row['exercise'] else 'No'},\"{row['notes'] or ''}\"\n"
+            
+            return csv_data, 200, {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': f'attachment; filename=sleep_data_{session["username"]}.csv'
+            }
+        except Exception as e:
+            return f"Error exporting data: {str(e)}"
+    return redirect(url_for('login'))
+
+@app.route('/sleep-data')
+def sleep_data():
+    """API endpoint for sleep data (used by charts)"""
+    if 'loggedin' in session:
+        try:
+            cursor = mysql.connection.cursor(MySQLdb.cursors.DictCursor)
+            cursor.execute('SELECT sleep_date, sleep_duration, sleep_quality FROM sleep_logs WHERE user_id = %s ORDER BY sleep_date', (session['userid'],))
+            sleep_data = cursor.fetchall()
+            
+            # Format data for charts
+            dates = [row['sleep_date'].strftime('%Y-%m-%d') for row in sleep_data]
+            durations = [float(row['sleep_duration']) for row in sleep_data]
+            qualities = [int(row['sleep_quality']) for row in sleep_data]
+            
+            return jsonify({
+                'dates': dates,
+                'durations': durations,
+                'qualities': qualities
+            })
+        except Exception as e:
+            return jsonify({'error': str(e)})
+    return redirect(url_for('login'))
+
+@app.route('/logout')
+def logout():
+    """Logout user and clear session"""
+    session.pop('loggedin', None)
+    session.pop('userid', None)
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
+# Error handlers
+@app.errorhandler(404)
+def page_not_found(e):
+    """Handle 404 errors"""
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(e):
+    """Handle 500 errors"""
+    return "Internal server error. Please try again later.", 500
+
+if __name__ == '__main__':
+    # In production, set debug=False
+    app.run(debug=True, host='127.0.0.1', port=5000)
